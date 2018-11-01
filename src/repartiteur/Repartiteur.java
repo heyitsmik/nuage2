@@ -19,7 +19,7 @@ public class Repartiteur {
 	private final String password = "password";
 
 	private ServiceInterface serviceStub;
-	private Map<ServerInterface, ServerConfig> serverStubs = new HashMap<>();
+	private Map<ServerInterface, ServerConfig> servers = new HashMap<>();
 
 	public static void main(String[] args) {
 		if (args.length > 0) {
@@ -65,12 +65,42 @@ public class Repartiteur {
 
 	private void run() {
 		try {
+			// Authentifier le répartiteur auprès du service des noms
 			this.serviceStub.signUpRepartiteur(this.username, this.password);
+
+			// Récupérer les configurations des serveurs actifs
 			List<ServerConfig> serversConfigs = this.serviceStub.getServers();
+
+			// Trier en ordre décroissant les serveurs selon leur capacité de calcul
+			// On veut prioriser les serveurs les plus puissants
+			Collections.sort(serversConfigs, Comparator.comparingInt(ServerConfig ::getOperationCapacity).reversed());
+
+			// Loader les stubs des serveurs
 			for (ServerConfig serverConfig : serversConfigs) {
 				ServerInterface serverStub = this.loadServerStub(serverConfig.getServerHostname(), serverConfig.getPort());
-				this.serverStubs.put(serverStub, serverConfig);
+				this.servers.put(serverStub, serverConfig);
 			}
+
+			int result = 0;
+
+			// Envoyer séquentiellement les tâches à chaque serveur
+			while (!operations.isEmpty()) {
+				for (Map.Entry<ServerInterface, ServerConfig> server : servers.entrySet()) {
+					ServerInterface serverStub = server.getKey();
+					ServerConfig serverConfig = server.getValue();
+	
+					// Transférer les opérations de la liste principale à la sub liste envoyée au serveur courant
+					List<String> subOperations = new ArrayList<String>();
+					for (int i = 0; i < serverConfig.getOperationCapacity() && i < operations.size(); i++) {
+						subOperations.add(operations.remove(0));
+					}
+	
+					result += serverStub.calculate(subOperations);
+					result %= 4000;
+				}
+			}
+
+			System.out.println(result);
 		}
 		catch (RemoteException e) {
 			System.out.println("Erreur: " + e.getMessage());
@@ -99,7 +129,6 @@ public class Repartiteur {
 		try {
 			Registry registry = LocateRegistry.getRegistry(hostname, port);
 			stub = (ServerInterface) registry.lookup("server");
-			stub.calculate(operations);
 		} catch (NotBoundException e) {
 			System.out.println("Erreur: Le nom '" + e.getMessage() + "' n'est pas défini dans le registre.");
 		} catch (AccessException e) {
