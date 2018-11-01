@@ -7,13 +7,16 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 
+import javax.sound.sampled.Port;
+
 import shared.*;
 
 public class Server implements ServerInterface {
 
-	private static String serviceHostname;
+	private static String serviceHostname = "127.0.0.1";
 	private static int OPERATION_CAPACITY = 0;
 	private static int MALICIOUS_RATE = 0;
+	private static int PORT = 0;
 
 	private ServiceInterface serviceStub;
 
@@ -23,9 +26,17 @@ public class Server implements ServerInterface {
 
 			if (args.length > 1) {
 				MALICIOUS_RATE = Integer.valueOf(args[1]);
+
 				if (MALICIOUS_RATE >= 0 && MALICIOUS_RATE <= 1) {
-					Server server = new Server();
-					server.run();
+
+					if (args.length > 2) {
+						PORT = Integer.valueOf(args[2]);
+
+						Server server = new Server();
+						server.run();
+					} else {
+						System.out.println("Erreur: Aucun port.");
+					}
 				} else {
 					System.out.println("Erreur: La frequence de comportement malicieux doit etre entre 0 et 1.");
 				}
@@ -43,7 +54,7 @@ public class Server implements ServerInterface {
 
 		try {
 			InetAddress inetAddress = InetAddress.getLocalHost();
-			serviceStub.signUpServer(inetAddress.getHostAddress(), OPERATION_CAPACITY);
+			serviceStub.signUpServer(inetAddress.getHostAddress(), OPERATION_CAPACITY, MALICIOUS_RATE, PORT);
 		} catch (Exception e) {
 			System.err.println("Erreur: " + e.getMessage());
 		}
@@ -70,8 +81,8 @@ public class Server implements ServerInterface {
 		}
 
 		try {
-			ServerInterface stub = (ServerInterface) UnicastRemoteObject.exportObject(this, 0);
-			Registry registry = LocateRegistry.getRegistry();
+			ServerInterface stub = (ServerInterface) UnicastRemoteObject.exportObject(this, PORT);
+			Registry registry = LocateRegistry.createRegistry(PORT);
 			registry.rebind("server", stub);
 			System.out.println("Server ready.");
 		} catch (ConnectException e) {
@@ -98,6 +109,7 @@ public class Server implements ServerInterface {
 
 	@Override
 	public int calculate(List<String> operations) throws RemoteException {
+		System.out.println("lala");
 		int result = 0;
 
 		for (String operation : operations) {

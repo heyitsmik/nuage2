@@ -10,7 +10,7 @@ import shared.*;
 
 public class Repartiteur {
 
-	private static String serviceHostName;
+	private static String serviceHostName = "127.0.0.1";
 	private static boolean secureMode = false;
 	private static final String INPUT_DIRECTORY = "inputs/";
 	private static List<String> operations = new ArrayList<>();
@@ -19,7 +19,7 @@ public class Repartiteur {
 	private final String password = "password";
 
 	private ServiceInterface serviceStub;
-	private Map<ServerInterface, Integer> serverStubs = new HashMap<>();
+	private Map<ServerInterface, ServerConfig> serverStubs = new HashMap<>();
 
 	public static void main(String[] args) {
 		if (args.length > 0) {
@@ -66,11 +66,10 @@ public class Repartiteur {
 	private void run() {
 		try {
 			this.serviceStub.signUpRepartiteur(this.username, this.password);
-			Map<String, Integer> serversInfo = this.serviceStub.getServers();
-			for (Map.Entry<String, Integer> entry : serversInfo.entrySet()) {
-				ServerInterface serverStub = this.loadServerStub(entry.getKey());
-				Integer operationCapacity = entry.getValue();
-				this.serverStubs.put(serverStub, operationCapacity);
+			List<ServerConfig> serversConfigs = this.serviceStub.getServers();
+			for (ServerConfig serverConfig : serversConfigs) {
+				ServerInterface serverStub = this.loadServerStub(serverConfig.getServerHostname(), serverConfig.getPort());
+				this.serverStubs.put(serverStub, serverConfig);
 			}
 		}
 		catch (RemoteException e) {
@@ -94,12 +93,13 @@ public class Repartiteur {
 		return stub;
 	}
 
-	private ServerInterface loadServerStub(String hostname) {
+	private ServerInterface loadServerStub(String hostname, int port) {
 		ServerInterface stub = null;
 
 		try {
-			Registry registry = LocateRegistry.getRegistry(hostname);
+			Registry registry = LocateRegistry.getRegistry(hostname, port);
 			stub = (ServerInterface) registry.lookup("server");
+			stub.calculate(operations);
 		} catch (NotBoundException e) {
 			System.out.println("Erreur: Le nom '" + e.getMessage() + "' n'est pas défini dans le registre.");
 		} catch (AccessException e) {
@@ -116,7 +116,6 @@ public class Repartiteur {
 			BufferedReader bufferedReader = new BufferedReader(new FileReader(operationsFile));
 	
 			String operation;
-	
 			while ((operation = bufferedReader.readLine()) != null) {
 				operations.add(operation);
 			}

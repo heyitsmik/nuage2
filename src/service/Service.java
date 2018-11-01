@@ -13,7 +13,7 @@ import shared.*;
 
 public class Service implements ServiceInterface {
 
-    private Map<String, Integer> servers = new HashMap<>();
+    private List<ServerConfig> servers = new ArrayList<>();
     private String repartiteurUsername = "";
     private String repartiteurPassword = "";
 
@@ -52,8 +52,8 @@ public class Service implements ServiceInterface {
     }
 
     @Override
-	public void signUpServer(String hostAddress, int operationCapacity) throws RemoteException {
-        this.servers.put(hostAddress, operationCapacity);
+	public void signUpServer(String hostAddress, int operationCapacity, int maliciousRate, int port) throws RemoteException {
+        this.servers.add(new ServerConfig(hostAddress, operationCapacity, maliciousRate, port));
     }
 
     @Override
@@ -62,7 +62,7 @@ public class Service implements ServiceInterface {
     }
 
     @Override
-    public Map<String, Integer> getServers() throws RemoteException {
+    public List<ServerConfig> getServers() throws RemoteException {
         return this.servers;
     }
 
