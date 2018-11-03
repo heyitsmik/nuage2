@@ -73,7 +73,7 @@ public class Repartiteur {
 
 			// Trier en ordre décroissant les serveurs selon leur capacité de calcul
 			// On veut prioriser les serveurs les plus puissants
-			Collections.sort(serversConfigs, Comparator.comparingInt(ServerConfig ::getOperationCapacity).reversed());
+			// Collections.sort(serversConfigs, Comparator.comparingInt(ServerConfig ::getOperationCapacity).reversed());
 
 			// Loader les stubs des serveurs
 			for (ServerConfig serverConfig : serversConfigs) {
@@ -81,26 +81,54 @@ public class Repartiteur {
 				this.servers.put(serverStub, serverConfig);
 			}
 
-			int result = 0;
-
-			// Envoyer séquentiellement les tâches à chaque serveur
-			while (!operations.isEmpty()) {
-				for (Map.Entry<ServerInterface, ServerConfig> server : servers.entrySet()) {
-					ServerInterface serverStub = server.getKey();
-					ServerConfig serverConfig = server.getValue();
+			// MODE SÉCURISÉ
+			// Le résultat des serveurs de calcul est considéré bon et valide.
+			// Le répartiteur n'a donc besoin que d'une seule réponse de la part d'un serveur.
+			if (secureMode) {
+				int result = 0;
 	
-					// Transférer les opérations de la liste principale à la sub liste envoyée au serveur courant
+				// Envoyer séquentiellement les tâches à chaque serveur
+				while (!operations.isEmpty()) {
+					for (Map.Entry<ServerInterface, ServerConfig> server : servers.entrySet()) {
+						ServerInterface serverStub = server.getKey();
+						ServerConfig serverConfig = server.getValue();
+		
+						// Transférer les opérations de la liste principale à la sub liste envoyée au serveur courant
+						List<String> subOperations = new ArrayList<String>();
+						for (int i = 0; i < serverConfig.getOperationCapacity() && i < operations.size(); i++) {
+							subOperations.add(operations.remove(0));
+						}
+		
+						result += serverStub.calculate(subOperations);
+						result %= 4000;
+					}
+				}
+	
+				System.out.println(result);
+			} else {
+				// MODE NON-SÉCURISÉE
+				// Le système ne fait pas confiance aux serveurs de calcul.
+				// Le répartiteur considère alors une réponse comme étant valide que si
+				// deux serveurs de calcul sont d'accord sur la même réponse à un même travail.
+	
+				// Une tâche peut être envoyée à plusieurs serveurs. Le nombre limite d'opérations correspond donc
+				// à la capacité la plus faible trouvée parmi les serveurs.
+				int maxOperations = serversConfigs.get(serversConfigs.size() - 1).getOperationCapacity();
+				int result = 0;
+	
+				while (!operations.isEmpty()) {
 					List<String> subOperations = new ArrayList<String>();
-					for (int i = 0; i < serverConfig.getOperationCapacity() && i < operations.size(); i++) {
+		
+					for (int i = 0; i < operations.size() && i < maxOperations; i++) {
 						subOperations.add(operations.remove(0));
 					}
-	
-					result += serverStub.calculate(subOperations);
+					
+					result += this.executeSubOperations(subOperations);
 					result %= 4000;
 				}
+	
+				System.out.println(result);
 			}
-
-			System.out.println(result);
 		}
 		catch (RemoteException e) {
 			System.out.println("Erreur: " + e.getMessage());
@@ -148,8 +176,54 @@ public class Repartiteur {
 			while ((operation = bufferedReader.readLine()) != null) {
 				operations.add(operation);
 			}
-		} catch (Exception e) { // FileNotFoundException ou IOException
+
+			bufferedReader.close();
+		} catch (IOException e) {
 			System.out.println("Erreur: " + e.getMessage());
+		}
+	}
+
+	private int executeSubOperations(List<String> subOperations) {
+		// Une tâche est envoyée à un serveur aléatoire.
+		Random random = new Random();
+		List<ServerInterface> keys = new ArrayList<>(this.servers.keySet());
+
+		// Une tâche n'est jamais envoyée deux fois au même serveur.
+		ServerInterface firstRandomServer = keys.remove( random.nextInt(keys.size()) );
+
+		try {
+			if (!keys.isEmpty()) {
+				
+				List<Integer> results = new ArrayList<>();
+				int firstResult = firstRandomServer.calculate(subOperations);
+				results.add(firstResult);
+				
+				ServerInterface otherRandomServer = keys.remove( random.nextInt(keys.size()) );
+				int otherResult = otherRandomServer.calculate(subOperations);
+				
+				while (!results.contains(otherResult)) {
+					results.add(otherResult);
+	
+					if (!keys.isEmpty()) {
+						otherRandomServer = keys.remove( random.nextInt(keys.size()) );
+						otherResult = otherRandomServer.calculate(subOperations);
+					} else {
+						// Tous les serveurs ont été utilisé.
+						// Retourner le premier résultat par défaut si tous les résultats obtenus diffèrent.
+						return firstResult;
+					}
+				}
+	
+				// Retourner un résultat à l'instant où il a été obtenu par deux serveurs différents
+				results.add(otherResult);
+				return otherResult;
+			} else {
+				// Aucune validation peut être faite s'il n'y a qu'un serveur.
+				return firstRandomServer.calculate(subOperations);
+			}
+		} catch (RemoteException e) {
+			System.out.println("Erreur: " + e.getMessage());
+			return Integer.MAX_VALUE;
 		}
 	}
 

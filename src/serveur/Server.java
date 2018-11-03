@@ -15,7 +15,7 @@ public class Server implements ServerInterface {
 
 	private static String serviceHostname = "127.0.0.1";
 	private static int OPERATION_CAPACITY = 0;
-	private static int MALICIOUS_RATE = 0;
+	private static float MALICIOUS_RATE = 0;
 	private static int PORT = 0;
 
 	private ServiceInterface serviceStub;
@@ -25,7 +25,7 @@ public class Server implements ServerInterface {
 			OPERATION_CAPACITY = Integer.valueOf(args[0]);
 
 			if (args.length > 1) {
-				MALICIOUS_RATE = Integer.valueOf(args[1]);
+				MALICIOUS_RATE = Float.valueOf(args[1]);
 
 				if (MALICIOUS_RATE >= 0 && MALICIOUS_RATE <= 1) {
 
@@ -111,20 +111,19 @@ public class Server implements ServerInterface {
 	public int calculate(List<String> operations) throws RemoteException {
 		int result = 0;
 
-		for (String operation : operations) {
-			String[] op = operation.split(" ");
-			String name = op[0];
-			int parameter = Integer.valueOf(op[1]);
-
-			result += (name.equals("pell")) ? Operations.pell(parameter) : Operations.prime(parameter);
-			result %= 4000;
-		}
-
-		if (Math.random() <= MALICIOUS_RATE) {
+		if (Math.random() > MALICIOUS_RATE) {
+			for (String operation : operations) {
+				String[] op = operation.split(" ");
+				String name = op[0];
+				int parameter = Integer.valueOf(op[1]);
+	
+				result += (name.equals("pell")) ? Operations.pell(parameter) : Operations.prime(parameter);
+				result %= 4000;
+			}
+			return result;
+		} else {
 			return (int)(Math.random() * 1234);
 		}
-
-		return result;
 	}
 
 }

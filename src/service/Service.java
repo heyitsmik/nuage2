@@ -52,7 +52,7 @@ public class Service implements ServiceInterface {
     }
 
     @Override
-	public void signUpServer(String hostAddress, int operationCapacity, int maliciousRate, int port) throws RemoteException {
+	public void signUpServer(String hostAddress, int operationCapacity, float maliciousRate, int port) throws RemoteException {
         this.servers.add(new ServerConfig(hostAddress, operationCapacity, maliciousRate, port));
     }
 
