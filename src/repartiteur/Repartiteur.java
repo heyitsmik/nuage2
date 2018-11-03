@@ -5,6 +5,10 @@ import java.rmi.*;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import shared.*;
 
@@ -20,6 +24,7 @@ public class Repartiteur {
 
 	private ServiceInterface serviceStub;
 	private Map<ServerInterface, ServerConfig> servers = new HashMap<>();
+	private ExecutorService executorService = Executors.newFixedThreadPool(5000);
 
 	public static void main(String[] args) {
 		if (args.length > 0) {
@@ -85,9 +90,9 @@ public class Repartiteur {
 			// Le résultat des serveurs de calcul est considéré bon et valide.
 			// Le répartiteur n'a donc besoin que d'une seule réponse de la part d'un serveur.
 			if (secureMode) {
-				int result = 0;
+				List<CompletableFuture<Integer>> futureSubResults = new ArrayList<>();
 	
-				// Envoyer séquentiellement les tâches à chaque serveur
+				// Envoyer concurremment les tâches à chaque serveur
 				while (!operations.isEmpty()) {
 					for (Map.Entry<ServerInterface, ServerConfig> server : servers.entrySet()) {
 						ServerInterface serverStub = server.getKey();
@@ -95,16 +100,43 @@ public class Repartiteur {
 		
 						// Transférer les opérations de la liste principale à la sub liste envoyée au serveur courant
 						List<String> subOperations = new ArrayList<String>();
-						for (int i = 0; i < serverConfig.getOperationCapacity() && i < operations.size(); i++) {
+						int operationsSize = operations.size();
+						
+						for (int i = 0; i < serverConfig.getOperationCapacity() && i < operationsSize; i++) {
 							subOperations.add(operations.remove(0));
 						}
-		
-						result += serverStub.calculate(subOperations);
+
+						futureSubResults.add(executeSubOperationsSecure(serverStub, subOperations));
+
+						if (operations.isEmpty()) {
+							break;
+						}
+					}
+				}
+
+				// Attendre la complétion de chaque tâche (avec l'appel "get" bloquant)
+				for (CompletableFuture<Integer> futureSubResult : futureSubResults) {
+					try {
+						futureSubResult.get();
+					} catch (InterruptedException | ExecutionException e) {
+						System.out.println("Erreur: " + e.getMessage());
+					}
+				}
+
+				// Combiner les résultats de chaque tâche
+				int result = 0;
+				for (CompletableFuture<Integer> futureSubResult : futureSubResults) {
+					try {
+						int subResult = futureSubResult.get();
+						result += subResult;
 						result %= 4000;
+					} catch (InterruptedException | ExecutionException e) {
+						System.out.println("Erreur: " + e.getMessage());
 					}
 				}
 	
 				System.out.println(result);
+				executorService.shutdown();
 			} else {
 				// MODE NON-SÉCURISÉE
 				// Le système ne fait pas confiance aux serveurs de calcul.
@@ -181,6 +213,18 @@ public class Repartiteur {
 		} catch (IOException e) {
 			System.out.println("Erreur: " + e.getMessage());
 		}
+	}
+
+	private CompletableFuture<Integer> executeSubOperationsSecure(ServerInterface server, List<String> subOperations) {
+		CompletableFuture<Integer> futureSubResult = new CompletableFuture<>();
+		executorService.submit(() -> {
+			try {
+				futureSubResult.complete(server.calculate(subOperations));
+			} catch (RemoteException e) {
+				System.out.println("Erreur: " + e.getMessage());
+			}
+		});
+		return futureSubResult;
 	}
 
 	private int executeSubOperations(List<String> subOperations) {

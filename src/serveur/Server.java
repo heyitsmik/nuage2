@@ -109,6 +109,7 @@ public class Server implements ServerInterface {
 
 	@Override
 	public int calculate(List<String> operations) throws RemoteException {
+		System.out.println("called");
 		int result = 0;
 
 		if (Math.random() > MALICIOUS_RATE) {
