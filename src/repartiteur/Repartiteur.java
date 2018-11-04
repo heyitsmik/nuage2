@@ -76,10 +76,6 @@ public class Repartiteur {
 			// Récupérer les configurations des serveurs actifs
 			List<ServerConfig> serversConfigs = this.serviceStub.getServers();
 
-			// Trier en ordre décroissant les serveurs selon leur capacité de calcul
-			// On veut prioriser les serveurs les plus puissants
-			// Collections.sort(serversConfigs, Comparator.comparingInt(ServerConfig ::getOperationCapacity).reversed());
-
 			// Loader les stubs des serveurs
 			for (ServerConfig serverConfig : serversConfigs) {
 				ServerInterface serverStub = this.loadServerStub(serverConfig.getServerHostname(), serverConfig.getPort());
@@ -91,35 +87,24 @@ public class Repartiteur {
 			// Le répartiteur n'a donc besoin que d'une seule réponse de la part d'un serveur.
 			if (secureMode) {
 				List<CompletableFuture<Integer>> futureSubResults = new ArrayList<>();
-	
-				// Envoyer concurremment les tâches à chaque serveur
+
 				while (!operations.isEmpty()) {
-					for (Map.Entry<ServerInterface, ServerConfig> server : servers.entrySet()) {
-						ServerInterface serverStub = server.getKey();
-						ServerConfig serverConfig = server.getValue();
-		
-						// Transférer les opérations de la liste principale à la sub liste envoyée au serveur courant
-						List<String> subOperations = new ArrayList<String>();
-						int operationsSize = operations.size();
-						
-						for (int i = 0; i < serverConfig.getOperationCapacity() && i < operationsSize; i++) {
-							subOperations.add(operations.remove(0));
-						}
+					// Envoyer concurremment les tâches à chaque serveur
+					boolean isDivisible = this.divideAndSendSubOperationsSecure(futureSubResults);
 
-						futureSubResults.add(executeSubOperationsSecure(serverStub, subOperations));
-
-						if (operations.isEmpty()) {
-							break;
-						}
+					if (!isDivisible) {
+						System.out.println("Erreur: Aucun serveur est disponible.");
+						executorService.shutdown();
+						return;
 					}
-				}
-
-				// Attendre la complétion de chaque tâche (avec l'appel "get" bloquant)
-				for (CompletableFuture<Integer> futureSubResult : futureSubResults) {
-					try {
-						futureSubResult.get();
-					} catch (InterruptedException | ExecutionException e) {
-						System.out.println("Erreur: " + e.getMessage());
+	
+					// Attendre la complétion de chaque tâche (avec l'appel "get" bloquant)
+					for (CompletableFuture<Integer> futureSubResult : futureSubResults) {
+						try {
+							futureSubResult.get();
+						} catch (InterruptedException | ExecutionException e) {
+							System.out.println("Erreur: " + e.getMessage());
+						}
 					}
 				}
 
@@ -215,19 +200,77 @@ public class Repartiteur {
 		}
 	}
 
-	private CompletableFuture<Integer> executeSubOperationsSecure(ServerInterface server, List<String> subOperations) {
+	private boolean divideAndSendSubOperationsSecure(List<CompletableFuture<Integer>> futureSubResults) {
+		while (!operations.isEmpty()) {
+			// Retourner faux s'il n'est pas possible de distribuer le calcul (c-.à-d. aucun serveur de disponible).
+			if (servers.isEmpty()) {
+				return false;
+			}
+
+			for (Map.Entry<ServerInterface, ServerConfig> server : servers.entrySet()) {
+				ServerInterface serverStub = server.getKey();
+				ServerConfig serverConfig = server.getValue();
+
+				// Transférer les opérations de la liste principale à la sub liste envoyée au serveur courant
+				List<String> subOperations = new ArrayList<String>();
+				int operationsSize = operations.size();
+
+				for (int i = 0; i < serverConfig.getOperationCapacity() && i < operationsSize; i++) {
+					subOperations.add(operations.remove(0));
+				}
+
+				futureSubResults.add(executeSubOperationsSecure(serverStub, subOperations));
+
+				if (operations.isEmpty()) {
+					break;
+				}
+			}
+		}
+
+		return true;
+	}
+
+	private CompletableFuture<Integer> executeSubOperationsSecure(ServerInterface serverStub, List<String> subOperations) {
 		CompletableFuture<Integer> futureSubResult = new CompletableFuture<>();
+
 		executorService.submit(() -> {
 			try {
-				futureSubResult.complete(server.calculate(subOperations));
+				futureSubResult.complete(serverStub.calculate(subOperations));
+			} catch (ServerOverloadedException e) {
+				// Exception envoyée lorsqu'un serveur est surchargé ou lorsqu'il y a un problème avec le remoting de Java RMI.
+
+				// Rajouter les opérations non-complétées pour qu'elles soient traitées à nouveau.
+				for (String operation : subOperations) {
+					operations.add(operation);
+				}
+
+				// Compléter l'opération.
+				futureSubResult.complete(0);
+
+				System.out.println("Erreur: " + e.getMessage());
 			} catch (RemoteException e) {
+				// Exception envoyée lorsqu'un serveur de calcul est tué au beau milieu de l'exécution d'une tâche.
+
+				// Rajouter les opérations non-complétées pour qu'elles soient traitées à nouveau.
+				for (String operation : subOperations) {
+					operations.add(operation);
+				}
+
+				// Retirer le serveur défectueux des serveurs disponibles.
+				this.servers.remove(serverStub);
+
+				// Compléter l'opération.
+				futureSubResult.complete(0);
+
 				System.out.println("Erreur: " + e.getMessage());
 			}
 		});
+
 		return futureSubResult;
 	}
 
 	private int executeSubOperations(List<String> subOperations) {
+		/*
 		// Une tâche est envoyée à un serveur aléatoire.
 		Random random = new Random();
 		List<ServerInterface> keys = new ArrayList<>(this.servers.keySet());
@@ -269,6 +312,8 @@ public class Repartiteur {
 			System.out.println("Erreur: " + e.getMessage());
 			return Integer.MAX_VALUE;
 		}
+		*/
+		return 0;
 	}
 
 }

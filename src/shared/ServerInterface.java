@@ -6,6 +6,5 @@ import java.util.*;
 
 public interface ServerInterface extends Remote {
 	boolean authenticate(String username, String password) throws RemoteException;
-	boolean isOverloaded(int nbOperations) throws RemoteException;
-	int calculate(List<String> operations) throws RemoteException;
+	int calculate(List<String> operations) throws ServerOverloadedException, RemoteException;
 }

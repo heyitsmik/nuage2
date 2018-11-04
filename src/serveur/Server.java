@@ -6,6 +6,7 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 import javax.sound.sampled.Port;
 
@@ -100,16 +101,32 @@ public class Server implements ServerInterface {
     }
 
 	@Override
-	public boolean isOverloaded(int nbOperations) throws RemoteException {
-		double refusalRate = (nbOperations - OPERATION_CAPACITY) / (4 * OPERATION_CAPACITY);
-		double randomNumber = Math.random();
+	public int calculate(List<String> operations) throws ServerOverloadedException, RemoteException {
+		// Vérifier si le serveur est surchargé.
+		int nbOperations = operations.size();
+		if (nbOperations > OPERATION_CAPACITY) {
+			
+			// Le taux de refus est de 100% si le nombre d'opérations excède 5x la capacité du serveur.
+			if (nbOperations > 5 * OPERATION_CAPACITY) {
+				throw new ServerOverloadedException("Erreur: Le serveur est surchargé. Redistribution des tâches.");
+			} else {
+				double refusalRate = (nbOperations - OPERATION_CAPACITY) / (4 * OPERATION_CAPACITY);
+				double randomNumber = Math.random();
 
-		return randomNumber <= refusalRate;
-	}
+				if (randomNumber <= refusalRate) {
+					throw new ServerOverloadedException("Erreur: Le serveur est surchargé. Redistribution des tâches.");
+				}
+			}
+		}
 
-	@Override
-	public int calculate(List<String> operations) throws RemoteException {
-		System.out.println("called");
+		System.out.println("START");
+		try {
+			TimeUnit.SECONDS.sleep(15);
+		} catch (Exception e) {
+			System.err.println("Erreur: " + e.getMessage());
+		}
+		System.out.println("END");
+
 		int result = 0;
 
 		if (Math.random() > MALICIOUS_RATE) {
