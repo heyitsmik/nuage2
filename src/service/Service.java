@@ -7,6 +7,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.rmi.server.RemoteServer;
 import java.util.*;
 
 import shared.*;
@@ -52,13 +53,18 @@ public class Service implements ServiceInterface {
     }
 
     @Override
-	public void signUpServer(String hostAddress, int operationCapacity, float maliciousRate, int port) throws RemoteException {
-        this.servers.add(new ServerConfig(hostAddress, operationCapacity, maliciousRate, port));
+	public void signUpServer(int operationCapacity, float maliciousRate, int port) throws RemoteException {
+        try {
+            String hostname = RemoteServer.getClientHost();
+            this.servers.add(new ServerConfig(hostname, operationCapacity, maliciousRate, port));
+        } catch (Exception e) {
+            System.err.println("Erreur: " + e.getMessage());
+        }
     }
 
     @Override
     public boolean authenticate(String username, String password) throws RemoteException {
-        return (this.repartiteurUsername == username && this.repartiteurPassword == password);
+        return (this.repartiteurUsername.equals(username) && this.repartiteurPassword.equals(password));
     }
 
     @Override

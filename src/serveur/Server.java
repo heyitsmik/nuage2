@@ -17,7 +17,9 @@ public class Server implements ServerInterface {
 	private static String serviceHostname = "127.0.0.1";
 	private static int OPERATION_CAPACITY = 0;
 	private static float MALICIOUS_RATE = 0;
-	private static int PORT = 0;
+	private static int PORT = 5000;
+
+	private boolean hasAuthenticatedDispatcher = false;
 
 	private ServiceInterface serviceStub;
 
@@ -54,8 +56,7 @@ public class Server implements ServerInterface {
 		serviceStub = loadServiceStub(serviceHostname);
 
 		try {
-			InetAddress inetAddress = InetAddress.getLocalHost();
-			serviceStub.signUpServer(inetAddress.getHostAddress(), OPERATION_CAPACITY, MALICIOUS_RATE, PORT);
+			serviceStub.signUpServer(OPERATION_CAPACITY, MALICIOUS_RATE, PORT);
 		} catch (Exception e) {
 			System.err.println("Erreur: " + e.getMessage());
 		}
@@ -98,7 +99,7 @@ public class Server implements ServerInterface {
 	@Override
     public boolean authenticate(String username, String password) throws RemoteException {
         return this.serviceStub.authenticate(username, password);
-    }
+	}
 
 	@Override
 	public int calculate(List<String> operations) throws ServerOverloadedException, RemoteException {
@@ -119,6 +120,7 @@ public class Server implements ServerInterface {
 			}
 		}
 
+		/*
 		System.out.println("START");
 		try {
 			TimeUnit.SECONDS.sleep(15);
@@ -126,6 +128,7 @@ public class Server implements ServerInterface {
 			System.err.println("Erreur: " + e.getMessage());
 		}
 		System.out.println("END");
+		*/
 
 		int result = 0;
 
