@@ -14,15 +14,14 @@ import shared.*;
 
 public class Repartiteur {
 
-	private static int PORT = 5000;
-	private static String serviceIP = "";
-	private static String serviceHostName = "127.0.0.1";
-	private static boolean secureMode = false;
-	private static final String INPUT_DIRECTORY = "inputs/";
-	private static List<String> operations = new ArrayList<>();
-
+	private static final int PORT = 5000;
 	private final String username = "username";
 	private final String password = "password";
+	private static final String INPUT_DIRECTORY = "inputs/";
+
+	private static String serviceIP = "";
+	private static boolean secureMode = false;
+	private static List<String> operations = new ArrayList<>();
 
 	private ServiceInterface serviceStub;
 	private Map<ServerInterface, ServerConfig> servers = new HashMap<>();
@@ -53,7 +52,7 @@ public class Repartiteur {
 						}
 					}
 				} else {
-					System.out.println("Erreur: Aucun addresse IP pour le service des noms.");
+					System.out.println("Erreur: Aucune adresse IP pour le service des noms.");
 				}
 
 				Repartiteur repartiteur = new Repartiteur();
@@ -108,6 +107,8 @@ public class Repartiteur {
 					// Envoyer concurremment les tâches à chaque serveur
 					boolean isDivisible = this.divideAndSendSubOperationsSecure(futureSubResults);
 
+					// La méthode divideAndSendSubOperationsSecure(...) retourne faux si tous les serveurs
+					// tombent en panne.
 					if (!isDivisible) {
 						System.out.println("Erreur: Aucun serveur est disponible.");
 						executorService.shutdown();
@@ -153,6 +154,8 @@ public class Repartiteur {
 					// Envoyer concurremment les tâches à chaque serveur
 					boolean isDivisible = this.divideAndSendSubOperationsNonSecure(futureSubResults, maxOperations);
 
+					// La méthode divideAndSendSubOperationsNonSecure(...) retourne faux si tous les serveurs
+					// tombent en panne.
 					if (!isDivisible) {
 						System.out.println("Erreur: Aucun serveur est disponible.");
 						executorService.shutdown();
@@ -395,8 +398,6 @@ public class Repartiteur {
 	}
 
 	private void handleRemoteException(RemoteException e, List<String> subOperations, ServerInterface serverStub) {
-		System.out.println(subOperations);
-		
 		// Rajouter les opérations non-complétées pour qu'elles soient traitées à nouveau.
 		for (String operation : subOperations) {
 			operations.add(operation);

@@ -37,7 +37,7 @@ public class Server implements ServerInterface {
 						Server server = new Server();
 						server.run();
 					} else {
-						System.out.println("Erreur: Aucun addresse IP pour le service des noms.");
+						System.out.println("Erreur: Aucune adresse IP pour le service des noms.");
 					}
 				} else {
 					System.out.println("Erreur: La frequence de comportement malicieux doit etre entre 0 et 1.");
@@ -55,7 +55,7 @@ public class Server implements ServerInterface {
 		serviceStub = loadServiceStub(serviceIP);
 
 		try {
-			serviceStub.signUpServer(OPERATION_CAPACITY, MALICIOUS_RATE, PORT);
+			serviceStub.signUpServer(OPERATION_CAPACITY, PORT);
 		} catch (Exception e) {
 			System.err.println("Erreur: " + e.getMessage());
 		}
@@ -118,14 +118,6 @@ public class Server implements ServerInterface {
 				}
 			}
 		}
-
-		System.out.println("START");
-		try {
-			TimeUnit.SECONDS.sleep(5);
-		} catch (Exception e) {
-			System.err.println("Erreur: " + e.getMessage());
-		}
-		System.out.println("END");
 
 		int result = 0;
 

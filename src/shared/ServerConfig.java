@@ -8,13 +8,11 @@ public class ServerConfig implements Serializable {
 
     private String SERVER_HOSTNAME;
 	private int OPERATION_CAPACITY;
-	private float MALICIOUS_RATE;
 	private int PORT;
 
-    public ServerConfig(String serverHostname, int operationCapacity, float maliciousRate, int port) {
+    public ServerConfig(String serverHostname, int operationCapacity, int port) {
         SERVER_HOSTNAME = serverHostname;
         OPERATION_CAPACITY = operationCapacity;
-        MALICIOUS_RATE = maliciousRate;
         PORT = port;
     }
 
@@ -24,10 +22,6 @@ public class ServerConfig implements Serializable {
 
     public int getOperationCapacity() {
         return OPERATION_CAPACITY;
-    }
-
-    public float getMaliciousRate() {
-        return MALICIOUS_RATE;
     }
 
     public int getPort() {

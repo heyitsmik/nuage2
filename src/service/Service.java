@@ -50,7 +50,7 @@ public class Service implements ServiceInterface {
 
         try {
             InetAddress inetAddress = InetAddress.getLocalHost();
-            System.out.println(inetAddress.getHostAddress());
+            System.out.println("Adresse IP: " + inetAddress.getHostAddress());
         } catch (Exception e) {
             System.err.println("Erreur: " + e.getMessage());
         }
@@ -63,10 +63,10 @@ public class Service implements ServiceInterface {
     }
 
     @Override
-	public void signUpServer(int operationCapacity, float maliciousRate, int port) throws RemoteException {
+	public void signUpServer(int operationCapacity, int port) throws RemoteException {
         try {
             String hostname = RemoteServer.getClientHost();
-            this.servers.add(new ServerConfig(hostname, operationCapacity, maliciousRate, port));
+            this.servers.add(new ServerConfig(hostname, operationCapacity, port));
         } catch (Exception e) {
             System.err.println("Erreur: " + e.getMessage());
         }
