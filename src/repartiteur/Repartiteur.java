@@ -395,6 +395,8 @@ public class Repartiteur {
 	}
 
 	private void handleRemoteException(RemoteException e, List<String> subOperations, ServerInterface serverStub) {
+		System.out.println(subOperations);
+		
 		// Rajouter les opérations non-complétées pour qu'elles soient traitées à nouveau.
 		for (String operation : subOperations) {
 			operations.add(operation);
@@ -402,8 +404,6 @@ public class Repartiteur {
 
 		// Retirer le serveur défectueux des serveurs disponibles.
 		this.servers.remove(serverStub);
-
-		System.out.println("Erreur: " + e.getMessage());
 	}
 
 }

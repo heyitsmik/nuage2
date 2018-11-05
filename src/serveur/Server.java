@@ -119,15 +119,13 @@ public class Server implements ServerInterface {
 			}
 		}
 
-		/*
 		System.out.println("START");
 		try {
-			TimeUnit.SECONDS.sleep(15);
+			TimeUnit.SECONDS.sleep(5);
 		} catch (Exception e) {
 			System.err.println("Erreur: " + e.getMessage());
 		}
 		System.out.println("END");
-		*/
 
 		int result = 0;
 
