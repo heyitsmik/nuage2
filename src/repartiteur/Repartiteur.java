@@ -14,6 +14,8 @@ import shared.*;
 
 public class Repartiteur {
 
+	private static int PORT = 5000;
+	private static String serviceIP = "";
 	private static String serviceHostName = "127.0.0.1";
 	private static boolean secureMode = false;
 	private static final String INPUT_DIRECTORY = "inputs/";
@@ -35,17 +37,23 @@ public class Repartiteur {
 				readOperations(operationsFile);
 
 				if (args.length > 1) {
-					String secureModeArg = args[1];
-
-					if (secureModeArg.equals("-s")) {
-						secureMode = true;
-					} else {
-						System.out.println("Erreur: Argument pas reconnu.");
-					}
+					serviceIP = args[1];
 
 					if (args.length > 2) {
-						System.out.println("Erreur: Trop d'arguments.");
+						String secureModeArg = args[2];
+	
+						if (secureModeArg.equals("-s")) {
+							secureMode = true;
+						} else {
+							System.out.println("Erreur: Argument pas reconnu.");
+						}
+	
+						if (args.length > 3) {
+							System.out.println("Erreur: Trop d'arguments.");
+						}
 					}
+				} else {
+					System.out.println("Erreur: Aucun addresse IP pour le service des noms.");
 				}
 
 				Repartiteur repartiteur = new Repartiteur();
@@ -65,11 +73,13 @@ public class Repartiteur {
 			System.setSecurityManager(new SecurityManager());
 		}
 
-		this.serviceStub = this.loadServiceStub(serviceHostName);
+		this.serviceStub = this.loadServiceStub(serviceIP);
 	}
 
 	private void run() {
 		try {
+			long START = System.nanoTime();
+
 			// Authentifier le répartiteur auprès du service des noms
 			this.serviceStub.signUpRepartiteur(this.username, this.password);
 
@@ -78,13 +88,15 @@ public class Repartiteur {
 
 			// Loader les stubs des serveurs
 			for (ServerConfig serverConfig : serversConfigs) {
-				ServerInterface serverStub = this.loadServerStub(serverConfig.getServerHostname(), serverConfig.getPort());
+				ServerInterface serverStub = this.loadServerStub(serverConfig.getServerHostname());
 
 				// Authentifier avec chacun des nouveaux stubs
 				if (serverStub.authenticate(this.username, this.password)) {
 					this.servers.put(serverStub, serverConfig);
 				}
 			}
+
+			int result = 0;
 
 			// MODE SÉCURISÉ
 			// Le résultat des serveurs de calcul est considéré bon et valide.
@@ -113,7 +125,6 @@ public class Repartiteur {
 				}
 
 				// Combiner les résultats de chaque tâche
-				int result = 0;
 				for (CompletableFuture<Integer> futureSubResult : futureSubResults) {
 					try {
 						int subResult = futureSubResult.get();
@@ -124,7 +135,6 @@ public class Repartiteur {
 					}
 				}
 	
-				System.out.println(result);
 				executorService.shutdown();
 			} else {
 				// MODE NON-SÉCURISÉE
@@ -160,7 +170,6 @@ public class Repartiteur {
 				}
 
 				// Combiner les résultats de chaque tâche
-				int result = 0;
 				for (CompletableFuture<Integer> futureSubResult : futureSubResults) {
 					try {
 						int subResult = futureSubResult.get();
@@ -171,9 +180,12 @@ public class Repartiteur {
 					}
 				}
 	
-				System.out.println(result);
 				executorService.shutdown();
 			}
+
+			long END = System.nanoTime();
+			System.out.println("Résultat final : " + result);
+			System.out.println("Temps d'exécution : " + (END - START));
 		}
 		catch (RemoteException e) {
 			System.out.println("Erreur: " + e.getMessage());
@@ -183,7 +195,7 @@ public class Repartiteur {
 	private ServiceInterface loadServiceStub(String hostname) {
 		ServiceInterface stub = null;
 		try {
-			Registry registry = LocateRegistry.getRegistry(hostname);
+			Registry registry = LocateRegistry.getRegistry(hostname, PORT);
 			stub = (ServiceInterface) registry.lookup("service");
 		} catch (NotBoundException e) {
 			System.out.println("Erreur: Le nom '" + e.getMessage() + "' n'est pas défini dans le registre.");
@@ -195,11 +207,11 @@ public class Repartiteur {
 		return stub;
 	}
 
-	private ServerInterface loadServerStub(String hostname, int port) {
+	private ServerInterface loadServerStub(String hostname) {
 		ServerInterface stub = null;
 
 		try {
-			Registry registry = LocateRegistry.getRegistry(hostname, port);
+			Registry registry = LocateRegistry.getRegistry(hostname, PORT);
 			stub = (ServerInterface) registry.lookup("server");
 		} catch (NotBoundException e) {
 			System.out.println("Erreur: Le nom '" + e.getMessage() + "' n'est pas défini dans le registre.");

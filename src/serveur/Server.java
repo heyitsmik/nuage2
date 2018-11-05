@@ -13,11 +13,11 @@ import javax.sound.sampled.Port;
 import shared.*;
 
 public class Server implements ServerInterface {
-
-	private static String serviceHostname = "127.0.0.1";
-	private static int OPERATION_CAPACITY = 0;
-	private static float MALICIOUS_RATE = 0;
+	
 	private static int PORT = 5000;
+	private static String serviceIP = "";
+	private static float MALICIOUS_RATE = 0;
+	private static int OPERATION_CAPACITY = 0;
 
 	private boolean hasAuthenticatedDispatcher = false;
 
@@ -33,12 +33,11 @@ public class Server implements ServerInterface {
 				if (MALICIOUS_RATE >= 0 && MALICIOUS_RATE <= 1) {
 
 					if (args.length > 2) {
-						PORT = Integer.valueOf(args[2]);
-
+						serviceIP = args[2];
 						Server server = new Server();
 						server.run();
 					} else {
-						System.out.println("Erreur: Aucun port.");
+						System.out.println("Erreur: Aucun addresse IP pour le service des noms.");
 					}
 				} else {
 					System.out.println("Erreur: La frequence de comportement malicieux doit etre entre 0 et 1.");
@@ -53,7 +52,7 @@ public class Server implements ServerInterface {
 
 	public Server() {
 		super();
-		serviceStub = loadServiceStub(serviceHostname);
+		serviceStub = loadServiceStub(serviceIP);
 
 		try {
 			serviceStub.signUpServer(OPERATION_CAPACITY, MALICIOUS_RATE, PORT);
@@ -65,7 +64,7 @@ public class Server implements ServerInterface {
 	private ServiceInterface loadServiceStub(String hostname) {
 		ServiceInterface stub = null;
 		try {
-			Registry registry = LocateRegistry.getRegistry(hostname);
+			Registry registry = LocateRegistry.getRegistry(hostname, PORT);
 			stub = (ServiceInterface) registry.lookup("service");
 		} catch (NotBoundException e) {
 			System.out.println("Erreur: Le nom '" + e.getMessage() + "' n'est pas défini dans le registre.");

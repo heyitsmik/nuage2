@@ -1,5 +1,6 @@
 package service;
 
+import java.net.InetAddress;
 import java.rmi.AccessException;
 import java.rmi.ConnectException;
 import java.rmi.NotBoundException;
@@ -13,6 +14,8 @@ import java.util.*;
 import shared.*;
 
 public class Service implements ServiceInterface {
+
+    private static int PORT = 5000;
 
     private List<ServerConfig> servers = new ArrayList<>();
     private String repartiteurUsername = "";
@@ -33,14 +36,21 @@ public class Service implements ServiceInterface {
         }
 
         try {
-            ServiceInterface stub = (ServiceInterface) UnicastRemoteObject.exportObject(this, 0);
-            Registry registry = LocateRegistry.getRegistry();
+            ServiceInterface stub = (ServiceInterface) UnicastRemoteObject.exportObject(this, PORT);
+            Registry registry = LocateRegistry.createRegistry(PORT);
             registry.rebind("service", stub);
             System.out.println("Service ready.");
         } catch (ConnectException e) {
             System.err.println("Impossible de se connecter au registre RMI. Est-ce que rmiregistry est lancé ?");
             System.err.println();
             System.err.println("Erreur: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("Erreur: " + e.getMessage());
+        }
+
+        try {
+            InetAddress inetAddress = InetAddress.getLocalHost();
+            System.out.println(inetAddress.getHostAddress());
         } catch (Exception e) {
             System.err.println("Erreur: " + e.getMessage());
         }
